@@ -1,0 +1,3 @@
+*.crt
+*.key
+cert-expiry-date.txt

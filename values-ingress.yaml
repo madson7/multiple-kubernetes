@@ -1,0 +1,25 @@
+---
+controller:
+  replicaCount: 1
+  ingressClassResource:
+    default: true
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      namespace: ingress-nginx
+      additionalLabels:
+        release: monitor
+  admissionWebhooks:
+    enabled: true
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+  service:
+    externalTrafficPolicy: Local
+    # annotations:
+    #   external-dns.alpha.kubernetes.io/hostname: kubernetes-example.com.
+  config:
+    enable-opentracing: "true"
+    zipkin-collector-host: grafana-agent.observability.svc
+    zipkin-service-name: nginx-internal

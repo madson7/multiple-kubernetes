@@ -1,0 +1,32 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istiocontrolplane
+spec:
+  profile: default
+  meshConfig:
+    enableAutoMtls: true
+  components:
+    base:
+      enabled: true
+  addonComponents:
+    prometheus:
+      enabled: true
+    jaeger:
+      enabled: true
+    kiali:
+      enabled: true
+  values:
+    global:
+      proxy:
+        autoInject: enabled
+    gateways:
+      istio-ingressgateway:
+        enabled: true
+        k8s:
+          namespaces:
+            - observability
+            - storage
+            - tempo
+            - loki
+            - mimir

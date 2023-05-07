@@ -9,53 +9,49 @@ for cmd in "minikube" "kubectl" "helm"; do
   type $cmd >/dev/null 2>&1 || { echo >&2 "$cmd required but it's not installed; aborting."; exit 1; }
 done
 
-DRIVER=${DRIVER-kvm}
-DOMAIN=lgtm-central.cluster.local
+https://github.com/rancher/rke/releases/download/v1.4.5/rke_linux-amd64
 
-if minikube status --profile=lgtm-central > /dev/null; then
-  echo "Minikube already running"
-else
-  echo "Starting minikube"
-  minikube start \
-    --driver=$DRIVER \
-    --container-runtime=containerd \
-    --cpus=4 \
-    --memory=8g \
-    --addons=metrics-server \
-    --addons=metallb \
-    --dns-domain=$DOMAIN \
-    --embed-certs=true \
-    --profile=lgtm-central
-fi
-
-MINIKUBE_IP=$(minikube ip -p lgtm-central)
-expect <<EOF
-spawn minikube addons configure metallb -p lgtm-central
-expect "Enter Load Balancer Start IP:" { send "${MINIKUBE_IP%.*}.201\\r" }
-expect "Enter Load Balancer End IP:" { send "${MINIKUBE_IP%.*}.210\\r" }
-expect eof
-EOF
 
 echo "Updating Helm Repositories"
-helm repo add jetstack https://charts.jetstack.io
 helm repo add nginx-stable https://helm.nginx.com/stable
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add minio https://charts.min.io/
+helm repo add metallb https://metallb.github.io/metallb
 helm repo update
 
+
+helm upgrade --install metallb metallb/metallb --namespace metallb-system --create-namespace
+kubectl apply -f ip-address-pool.yaml
+
+echo "Deploying Nginx Ingress"
+helm upgrade --install ingress-nginx nginx-stable/nginx-ingress \
+  --namespace ingress-nginx --create-namespace -f values/nginx-ingress.yaml
+
 echo "Setting up namespaces"
-for ns in observability; do
+for ns in observability storage tempo loki mimir app; do
   cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Namespace
 metadata:
   name: $ns
 EOF
-# kubectl create secret tls ingress-cert --namespace $ns \
-#   --key=certs/ingress-tls.key --cert=certs/ingress-tls.crt -o yaml
+kubectl create secret tls ingress-cert --namespace $ns \
+  --key=certs/ingress-tls.key --cert=certs/ingress-tls.crt -o yaml
 done
 
-echo "Deploying Nginx Ingress"
-helm upgrade --install ingress-nginx nginx-stable/nginx-ingress \
-  --namespace ingress-nginx --create-namespace -f values-ingress.yaml
+echo "Deploying Prometheus CRDs"
+./deploy-prometheus-crds.sh
 
-echo "Deploying Apps"
-./deploy-apps.sh
+echo "Deploying Prometheus (for Local Metrics)"
+helm upgrade --install monitor prometheus-community/kube-prometheus-stack \
+  -n observability -f values/prometheus-common.yaml -f values/prometheus-central.yaml --wait
+
+echo "Deploying Sample App"
+kubectl apply -f app/sample-app.yaml
+
+echo "Create Ingress resources"
+kubectl apply -f ingress-central.yaml
+
+INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-nginx-ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Remember to add entries to /etc/hosts pointing to $INGRESS_IP to test the Ingress resources"

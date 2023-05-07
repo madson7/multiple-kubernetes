@@ -1,0 +1,5 @@
+<network>
+  <name>host-bridge2</name>
+  <forward mode="bridge"/>
+  <bridge name="wlx00e0202f56d4"/>
+</network>

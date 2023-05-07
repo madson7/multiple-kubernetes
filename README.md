@@ -1,7 +1,7 @@
 # Kultiple Kubernetes
 Playground for multiple Kubernetes clusters
 
-minikube delete -p lgtm-central
+minikube delete -p central
 minikube delete -p lgtm-remote
 
 mkdir certs

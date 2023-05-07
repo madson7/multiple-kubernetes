@@ -3,32 +3,66 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: sample-app-ingress
+  namespace: app
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - app1.ramosecajado.com
+    - app2.ramosecajado.com
+    secretName: ingress-cert
+  rules:
+  - host: app1.ramosecajado.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: kuard
+            port:
+              number: 80
+  - host: app2.ramosecajado2.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: kuard
+            port:
+              number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: observability-ingress
   namespace: observability
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - ramosecajado1.com
-    - ramosecajado2.com
+    - grafana.ramosecajado.com
     secretName: ingress-cert
   rules:
-  - host: ramosecajado1.com
+  - host: grafana.ramosecajado.com
     http:
       paths:
       - pathType: Prefix
         path: "/"
         backend:
           service:
-            name: kuard
+            name: monitor-grafana
             port:
-              number: 80
-  - host: ramosecajado2.com
+              name: http-web
+  - host: prometheus.ramosecajado.com
     http:
       paths:
       - pathType: Prefix
         path: "/"
         backend:
           service:
-            name: kuard
+            name: monitor-prometheus
             port:
-              number: 80
+              name: http-web
